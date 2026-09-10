@@ -26,16 +26,19 @@ Copy and paste the block below directly into `security.microsoft.com/v2/advanced
 ```kusto
 // 1. Rogue MFA Enrollment
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType in ("User registered security info", "Update user - Add authentication method")
 | project Timestamp, AccountDisplayName, ActionType, IPAddress, CountryCode
 
 // 2. Conditional Access Tampering
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType has_any ("Update conditional access policy", "Delete conditional access policy")
 | project Timestamp, AccountDisplayName, ActionType, ObjectName, IPAddress
 
 // 3. Helpdesk Social Engineering (Password Resets by Admins)
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType in ("Reset user password", "Update user")
 | where InitiatingUserOrAppType == "Admin"
 | project Timestamp, InitiatingUserOrAppType, AccountDisplayName, ActionType, TargetAccountDisplayName
@@ -47,17 +50,20 @@ CloudAppEvents
 
 // 5. Service Principal Tampering (New Secrets)
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType has_any ("Add service principal credentials", "Certificates and secrets management")
 | project Timestamp, AccountDisplayName, ActionType, TargetAccountDisplayName, IPAddress
 
 // 6. Privileged Role Escalation
 IdentityDirectoryEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType == "Add member to role"
 | where AdditionalFields has_any ("Global Administrator", "Privileged Authentication Administrator")
 | project Timestamp, AccountDisplayName, ActionType, TargetAccountDisplayName, AdditionalFields
 
 // 7. Malicious Mailbox Forwarding Rules
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where Application == "Microsoft Exchange Online"
 | where ActionType in ("New-InboxRule", "Set-Mailbox")
 | where RawEventData has_any ("ForwardTo", "ForwardingSmtpAddress")
@@ -65,21 +71,27 @@ CloudAppEvents
 
 // 8. Atypical / Risky Sign-ins (Successful)
 AADSignInEventsBeta
+| where TimeGenerated <= ago(1m)
 | where ErrorCode == 0
 | where RiskLevelDuringSignIn in ("High", "Medium") or IsRisky == 1
 | project Timestamp, AccountDisplayName, RiskLevelDuringSignIn, IsRisky, IPAddress, Location
 
 // 9. Federation Trust / Cross-Tenant Manipulation
 CloudAppEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType has_any ("Set federation settings on domain", "Add domain", "cross-tenant access policy")
 | project Timestamp, AccountDisplayName, ActionType, ObjectName, IPAddress
 
 // 10. Suspicious BYOD Registration (Mobile Platforms)
 IdentityDirectoryEvents
+| where TimeGenerated <= ago(1m)
 | where ActionType == "Device registration"
 | where AdditionalFields has_any ("Android", "iOS")
 | project Timestamp, AccountDisplayName, ActionType, DeviceName, AdditionalFields
 ```
+
+## I Try to add "| where TimeGenerated <= ago(1m)" to capture a full 30d range
+
 ---
 
 # Advanced Threat Hunting & Purple Team Detections (Part 2: Tactics 11–20)
